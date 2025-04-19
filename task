@@ -5,12 +5,17 @@ explain analyse select name from t1 where id = 50000;
 create index idname on t1 (id)
 drop index idname;
 
---2 не получилось. Хочу разобрать.
-SET work_mem = '30MB';
+"Index Scan using idname on t1  (cost=0.43..8.45 rows=1 width=30) (actual time=0.036..0.036 rows=1 loops=1)"
+"  Index Cond: (id = 50000)"
+"Planning Time: 0.089 ms"
+"Execution Time: 0.056 ms"
+
+
+
+--2 не получилось.
 
 select max(t2.day) from t2 left join t1 on t2.t_id = t1.id and t1.name like 'a%';
 explain analyse select max(t2.day) from t2 left join t1 on t2.t_id = t1.id and t1.name like 'a%';
-explain analyse select max(t2.day) from t2 where t_id in (select id from t1 where name like 'a%');
 
 
 
@@ -24,6 +29,15 @@ select day from t2 where t_id not in ( select t1.id from t1);
 --Переписан.
 select t2.day from t2 left join t1 on t2.t_id = t1.id where t1.id is null; 
 
+"Hash Right Anti Join  (cost=168787.00..592220.00 rows=1 width=9) (actual time=6444.369..6444.372 rows=0 loops=1)"
+"  Hash Cond: (t1.id = t2.t_id)"
+"  ->  Seq Scan on t1  (cost=0.00..183392.00 rows=10000000 width=4) (actual time=0.310..814.680 rows=10000000 loops=1)"
+"  ->  Hash  (cost=81872.00..81872.00 rows=5000000 width=13) (actual time=1150.066..1150.068 rows=5000000 loops=1)"
+"        Buckets: 2097152  Batches: 4  Memory Usage: 74935kB"
+"        ->  Seq Scan on t2  (cost=0.00..81872.00 rows=5000000 width=13) (actual time=0.047..454.599 rows=5000000 loops=1)"
+"Planning Time: 0.140 ms"
+"Execution Time: 6451.263 ms"
+
 explain analyse select day from t2 where t_id expect ( select t1.id from t1 );
 explain analyse select t2.day from t2 left join t1 on t2.t_id = t1.id where t1.id is null;
 
@@ -33,3 +47,13 @@ explain analyse select day from t2 where t_id in ( select t1.id from t1 where t2
 
 select t2.day from t2 right join t1 on t2.t_id = t1.id where t2.day > to_char(now() - interval '1 months','yyyymmdd'); 
 explain analyse select t2.day from t2 right join t1 on t2.t_id = t1.id where t2.day > to_char(now() - interval '1 months','yyyymmdd'); 
+
+"Hash Join  (cost=32883.91..262027.61 rows=825170 width=9) (actual time=230.657..3541.430 rows=817330 loops=1)"
+"  Hash Cond: (t1.id = t2.t_id)"
+"  ->  Seq Scan on t1  (cost=0.00..183392.00 rows=10000000 width=4) (actual time=0.034..736.364 rows=10000000 loops=1)"
+"  ->  Hash  (cost=22569.28..22569.28 rows=825170 width=13) (actual time=229.164..229.166 rows=817330 loops=1)"
+"        Buckets: 1048576  Batches: 1  Memory Usage: 46505kB"
+"        ->  Index Scan using day1 on t2  (cost=0.44..22569.28 rows=825170 width=13) (actual time=0.038..87.331 rows=817330 loops=1)"
+"              Index Cond: (day > to_char((now() - '1 mon'::interval), 'yyyymmdd'::text))"
+"Planning Time: 0.219 ms"
+"Execution Time: 3564.266 ms"
