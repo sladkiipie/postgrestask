@@ -1,0 +1,35 @@
+select name from t1 where id = 50000;
+explain analyse select name from t1 where id = 50000;
+
+--1
+create index idname on t1 (id)
+drop index idname;
+
+--2 не получилось. Хочу разобрать.
+SET work_mem = '30MB';
+
+select max(t2.day) from t2 left join t1 on t2.t_id = t1.id and t1.name like 'a%';
+explain analyse select max(t2.day) from t2 left join t1 on t2.t_id = t1.id and t1.name like 'a%';
+explain analyse select max(t2.day) from t2 where t_id in (select id from t1 where name like 'a%');
+
+
+
+CREATE INDEX day1 ON t2(day); 
+drop index day1;
+SELECT * from t1;
+SELECT * from t2;
+
+--3. 
+select day from t2 where t_id not in ( select t1.id from t1);  
+--Переписан.
+select t2.day from t2 left join t1 on t2.t_id = t1.id where t1.id is null; 
+
+explain analyse select day from t2 where t_id expect ( select t1.id from t1 );
+explain analyse select t2.day from t2 left join t1 on t2.t_id = t1.id where t1.id is null;
+
+--4
+select day from t2 where t_id in ( select t1.id from t1 where t2.t_id = t1.id) and day > to_char(date_trunc('day',now()- '1 months'::interval),'yyyymmdd');
+explain analyse select day from t2 where t_id in ( select t1.id from t1 where t2.t_id = t1.id) and day > to_char(date_trunc('day',now()- '1 months'::interval),'yyyymmdd');
+
+select t2.day from t2 right join t1 on t2.t_id = t1.id where t2.day > to_char(now() - interval '1 months','yyyymmdd'); 
+explain analyse select t2.day from t2 right join t1 on t2.t_id = t1.id where t2.day > to_char(now() - interval '1 months','yyyymmdd'); 
